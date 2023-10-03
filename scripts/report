@@ -1,0 +1,90 @@
+---
+parameters
+class_name: WebPage
+batch_size: 20
+entities: 5421
+read time: 10.1283s
+write time: 8.4974s
+total time: 18.6258s
+average read-write per entity: 0.003436 io/s
+
+---
+parameters
+class_name: WebPage
+batch_size: 50
+entities: 5421
+read time: 9.5755s
+write time: 8.3116s
+total time: 17.8878s
+average read-write per entity: 0.003300 rw/s
+
+---
+parameters
+class_name: WebPage
+batch_size: 100
+entities: 5421
+read time: 9.8083s
+write time: 8.9245s
+total time: 18.7330s
+average read-write per entity: 0.003456 rw/s
+
+---
+parameters
+class_name: WebPage
+batch_size: 150
+entities: 5421
+read time: 9.2429s
+write time: 8.5331s
+total time: 17.7762s
+average read-write per entity: 0.003279 rw/s
+
+---
+parameters
+class_name: WebPage
+batch_size: 200
+entities: 5421
+read time: 9.9795s
+write time: 9.4227s
+total time: 19.4024s
+average read-write per entity: 0.003579 rw/s
+
+---
+parameters
+class_name: WebPage
+batch_size: 250
+entities: 5421
+read time: 9.6741s
+write time: 8.9363s
+total time: 18.6105s
+average read-write per entity: 0.003433 rw/s
+
+---
+parameters
+class_name: WebPage
+batch_size: 500
+entities: 5421
+read time: 11.1977s
+write time: 10.3957s
+total time: 21.5936s
+average read-write per entity: 0.003983 rw/s
+
+---
+parameters
+class_name: WebPage
+batch_size: 300
+entities: 5421
+read time: 10.4806s
+write time: 9.1738s
+total time: 19.6547s
+average read-write per entity: 0.003626 rw/s
+
+---
+parameters
+class_name: WebPage
+batch_size: 1000
+entities: 5421
+read time: 11.0220s
+write time: 8.4821s
+total time: 19.5042s
+average read-write per entity: 0.003598 rw/s
+
