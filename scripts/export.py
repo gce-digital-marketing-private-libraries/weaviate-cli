@@ -46,11 +46,12 @@ while True:
         formatted_entity = {
             "class": class_name,
             "id": entity["_additional"]["id"],
-            "vector": entity["_additional"]["vector"]
+            "vector": entity["_additional"]["vector"],
+            "attributes": []
         }
 
         for prop in properties:
-            formatted_entity[prop] = entity[prop]
+            formatted_entity['attributes'][prop] = entity[prop]
 
         results.append(formatted_entity)
 
