@@ -5,6 +5,7 @@ Weaviate CLI data group functions.
 import sys
 import json
 import click
+import time
 import weaviate
 
 from semi.utils import get_client_from_context
@@ -30,10 +31,87 @@ def concept_import(ctx, file, fail_on_error):
 def data_empty(ctx, force):
     delete_all_data(get_client_from_context(ctx), force)
 
+# Our new custom command for exporting
+# TODO: add callback prompt for file if that file already exists
+# TODO: support restricting export to subset of classes in Weaviate
+# TODO: support restricting properties exported from each class (will require validating list of properties against the class' schema)
+# TODO: export *all* classes as a default
+@data_group.command("export", help="Export data to json file.")
+@click.pass_context
+@click.argument('file')
+@click.option('--batch-size', '-b', required=False, default=150, is_flag=False, help="Number of objects to retrieve per request", type=int)
+@click.option('--vectors/--no-vectors', 'include_vectors', required=False, default=True, is_flag=True, help="Include the vector property on exported objects")
+@click.option("--pretty/--no-pretty", "pretty", required=False, default=False, is_flag=True, help="Write the exported file in a more human-readable format")
+@click.option('--fail-on-error', required=False, default=True, is_flag=True, help="Fail if export throws an error")
+def export_classes(ctx, file, batch_size, include_vectors: bool, pretty:bool, fail_on_error: bool=True):
+    print("retrieving entities...")
+
+    # TODO: parameterize class_names & fields
+    # TODO: remove profiling code
+    read_start = time.perf_counter_ns()
+    entities = export_class(get_client_from_context(ctx), "WebPage", batch_size, include_vectors, fail_on_error)
+
+    with open(file, 'x', encoding="utf-8") as f:
+        print("writing file...")
+
+        format_options = {
+            "indent": 4 if pretty else None,
+            "separators": (',', ': ') if pretty else (',', ':'),
+        }
+
+        json.dump(dict(classes=entities, timestamp=time.time()), f, **format_options)
+        write_finish = time.perf_counter_ns()
+
+        total_time = (write_finish - read_start) / 1000000000
+        print(f"exported {len(entities)} entities in {total_time:0.4f}s\n")
+
 
 ####################################################################################################
 # Helper functions
 ####################################################################################################
+
+def export_class(client: weaviate.Client, class_name, batch_size, include_vectors: bool, fail_on_error: bool=False) -> list:
+    cursor = None
+
+    class_schema = client.schema.get(class_name)
+    class_properties = [prop.get('name') for prop in class_schema.get('properties')]
+
+    results = []
+
+    # Don't love this while True, python does not have do-while loops
+    while True:
+        next_results = _get_batch_with_cursor(client, class_name, class_properties, batch_size, include_vectors, cursor)
+
+        if len(next_results["data"]["Get"][class_name]) == 0:
+            break
+
+        entities = next_results["data"]["Get"][class_name]
+        for entity in entities:
+            formatted_entity = {
+                "class": class_name,
+                "id": entity["_additional"]["id"],
+                "properties": {prop: entity[prop] for prop in class_properties},
+            }
+            if include_vectors:
+                formatted_entity['vector'] = entity["_additional"]['vector']
+
+            results.append(formatted_entity)
+
+        cursor = next_results["data"]["Get"][class_name][-1]["_additional"]["id"]
+
+    return results
+
+
+def _get_batch_with_cursor(client: weaviate.Client, class_name, class_properties, batch_size: int, include_vectors: bool, cursor=None):
+    query = (
+        client.query.get(class_name, class_properties)
+        .with_additional(["id", "vector" if include_vectors else ""])
+        .with_limit(batch_size)
+    )
+    if cursor is not None:
+        return query.with_after(cursor).do()
+    else:
+        return query.do()
 
 
 def delete_all_data(client: weaviate.Client, force: bool) -> None:
@@ -155,6 +233,7 @@ class DataFileImporter:
             self.batcher.add_reference(**ref)
         self.batcher.flush()
 
+
 class ValidateAndSplitData:
 
     def __init__(self, data: dict, schema: dict):
@@ -216,6 +295,7 @@ class ValidateAndSplitData:
             else:
                 _exit_validation_failed(f"Property {obj_property_name} of class {obj_class_name} not in schema!")
         self.data_objects.append(import_object_parameter)
+
 
 def _exit_validation_failed(reason: str):
     """
@@ -331,5 +411,5 @@ def is_primitive_prop(data_type: str) -> bool:
         True if 'data_type' is of a primitive property.
     """
 
-    return data_type in ['text', 'string', 'int', 'boolean', 'number', 'date', 'geoCoordinates',\
-        'phoneNumber']
+    return data_type in ['text', 'string', 'int', 'boolean', 'number', 'date', 'geoCoordinates', \
+                         'phoneNumber']
